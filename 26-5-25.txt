@@ -1,0 +1,175 @@
+package crud_operation;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.Scanner;
+import com.mysql.cj.jdbc.result.ResultSetMetaData;
+
+public class CrudOperation {
+
+    public static void main(String[] args) {
+        CrudOperation app = new CrudOperation();
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("How many student records would you like to insert? ");
+        int numberOfStudents = scanner.nextInt();
+
+        for (int i = 0; i < numberOfStudents; i++) {
+            System.out.print("Enter student ID: ");
+            int studentId = scanner.nextInt();
+            scanner.nextLine(); // Consume newline
+
+            System.out.print("Enter student name: ");
+            String studentName = scanner.nextLine();
+
+            app.createStudent(studentId, studentName);
+        }
+
+        app.displayAllStudents();
+        app.searchStudentById(scanner);
+
+        app.updateStudent(104, 113, "Nandini");
+
+        app.displayAllStudents();
+        app.addAgeColumnToStudentTable();
+        app.showStudentTableStructure();
+
+        System.out.print("Enter the student ID of the record you want to delete: ");
+        int idToDelete = scanner.nextInt();
+        app.deleteStudent(idToDelete);
+
+        scanner.close();
+    }
+
+    public void createStudent(int id, String name) {
+        Connection connection = new DB_connection().get_connection();
+
+        try (PreparedStatement statement = connection.prepareStatement("INSERT INTO student VALUES (?, ?)")) {
+            statement.setInt(1, id);
+            statement.setString(2, name);
+
+            System.out.println("Inserting student: " + name + " (ID: " + id + ")");
+            statement.executeUpdate();
+        } catch (Exception e) {
+            System.out.println("Failed to insert student. Reason: " + e.getMessage());
+        }
+    }
+
+    public void displayAllStudents() {
+        Connection connection = new DB_connection().get_connection();
+
+        try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM student");
+             ResultSet resultSet = statement.executeQuery()) {
+
+            ResultSetMetaData metaData = (ResultSetMetaData) resultSet.getMetaData();
+            int columnCount = metaData.getColumnCount();
+
+            System.out.println("\n--- All Student Records ---");
+            while (resultSet.next()) {
+                for (int i = 1; i <= columnCount; i++) {
+                    System.out.print(metaData.getColumnName(i) + ": " + resultSet.getObject(i) + "  ");
+                }
+                System.out.println();
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error fetching student data: " + e.getMessage());
+        }
+    }
+
+    public void searchStudentById(Scanner scanner) {
+        Connection connection = new DB_connection().get_connection();
+
+        System.out.print("Enter student ID to search: ");
+        int studentId = scanner.nextInt();
+
+        try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM student WHERE s_id = ?")) {
+            statement.setInt(1, studentId);
+            ResultSet resultSet = statement.executeQuery();
+
+            ResultSetMetaData metaData = (ResultSetMetaData) resultSet.getMetaData();
+            int columnCount = metaData.getColumnCount();
+
+            System.out.println("\n--- Search Result ---");
+            boolean recordFound = false;
+
+            while (resultSet.next()) {
+                recordFound = true;
+                for (int i = 1; i <= columnCount; i++) {
+                    System.out.print(metaData.getColumnName(i) + ": " + resultSet.getObject(i) + "  ");
+                }
+                System.out.println();
+            }
+
+            if (!recordFound) {
+                System.out.println("No student found with ID: " + studentId);
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error during search: " + e.getMessage());
+        }
+    }
+
+    public void updateStudent(int oldId, int newId, String newName) {
+        Connection connection = new DB_connection().get_connection();
+
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE student SET s_id = ?, s_name = ? WHERE s_id = ?")) {
+
+            statement.setInt(1, newId);
+            statement.setString(2, newName);
+            statement.setInt(3, oldId);
+
+            System.out.println("Updating student ID " + oldId + " to ID " + newId + " with name " + newName);
+            statement.executeUpdate();
+
+        } catch (Exception e) {
+            System.out.println("Failed to update student. Reason: " + e.getMessage());
+        }
+    }
+
+    public void addAgeColumnToStudentTable() {
+        Connection connection = new DB_connection().get_connection();
+
+        try (PreparedStatement statement = connection.prepareStatement("ALTER TABLE student ADD age INT")) {
+            statement.executeUpdate();
+            System.out.println("Added 'age' column to student table.");
+        } catch (Exception e) {
+            System.out.println("Could not add column (maybe it already exists). Reason: " + e.getMessage());
+        }
+    }
+
+    public void showStudentTableStructure() {
+        Connection connection = new DB_connection().get_connection();
+
+        try (PreparedStatement statement = connection.prepareStatement("DESCRIBE student");
+             ResultSet resultSet = statement.executeQuery()) {
+
+            System.out.println("\n--- Student Table Structure ---");
+            System.out.println("Field  Type  Null  Key  Default  Extra");
+
+            while (resultSet.next()) {
+                for (int i = 1; i <= 6; i++) {
+                    System.out.print(resultSet.getObject(i) + "  ");
+                }
+                System.out.println();
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error describing table: " + e.getMessage());
+        }
+    }
+
+    public void deleteStudent(int id) {
+        Connection connection = new DB_connection().get_connection();
+
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM student WHERE s_id = ?")) {
+            statement.setInt(1, id);
+            System.out.println("Deleting student with ID: " + id);
+            statement.executeUpdate();
+        } catch (Exception e) {
+            System.out.println("Failed to delete student. Reason: " + e.getMessage());
+        }
+    }
+}
